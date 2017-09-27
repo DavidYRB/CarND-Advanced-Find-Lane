@@ -96,7 +96,7 @@ for idx, name in enumerate(img_path):
 
 	# all widths and heights are used in percentage of the size of the image to draw a rectangular 
 	bot_width = 0.8
-	top_width = 0.091
+	top_width = 0.1
 	top_height = .62
 	bot_height = .935
 	offset = img_size[0]*.25
@@ -121,10 +121,10 @@ for idx, name in enumerate(img_path):
 	#detect lane lines in the transformed images
 	win_width = 30
 	win_height = 80 # break image into 9 vertical layers since the height of the image is 720
-	margin = 100 # Slice area for searching
+	margin = 25 # Slice area for searching
 	left_centers = []
 	right_centers = []
-	center_tracker = tracker(window_width=win_width, window_height=win_height, margin=margin, ym2pixel=10/720, xm2pixel=4/384, smooth_factor=15)
+	center_tracker = tracker(window_width=win_width, window_height=win_height, margin=margin, ym2pixel=40/720, xm2pixel=4/517, smooth_factor=15)
 	centers = center_tracker.find_window_centroids(warped)
 	
 
@@ -169,29 +169,29 @@ for idx, name in enumerate(img_path):
 	road_bkg = np.zeros_like(img)
 	cv2.fillPoly(lane, [left_pts], color=[255,0,0])
 	cv2.fillPoly(lane, [right_pts], color=[0,0,255])
-	cv2.fillPoly(lane, [middle_pts], color=[0,255,0])
+	# cv2.fillPoly(lane, [middle_pts], color=[0,255,0])
 
-	lane_warped = cv2.warpPerspective(lane, Minv, img_size, flags=cv2.INTER_LINEAR)
+	# lane_warped = cv2.warpPerspective(lane, Minv, img_size, flags=cv2.INTER_LINEAR)
 	
-	# calculate the curvature of current road
-	xm_per_pixel = center_tracker.xm_per_pixel
-	ym_per_pixel = center_tracker.ym_per_pixel
-	curv_fit = np.polyfit(np.array(y_centers, np.float32)*ym_per_pixel, np.array(left_centers, np.float32)*xm_per_pixel, 2)
-	curv_rad = ((1 + (2*curv_fit[0]*y_values[-1]*ym_per_pixel*curv_fit[1])**2)**(3/2))/np.absolute(2*curv_fit[0])
-	# calcutate the distance from center
-	lane_center = (left_fitx[-1] + right_fitx[-1])/2
-	print(lane_center)
-	diff = (lane_center - img_size[0]/2)*xm_per_pixel
-	if diff <= 0:
-		dire = 'right'
-	else:
-		dire = 'left'
+	# # calculate the curvature of current road
+	# xm_per_pixel = center_tracker.xm_per_pixel
+	# ym_per_pixel = center_tracker.ym_per_pixel
+	# curv_fit = np.polyfit(np.array(y_centers, np.float32)*ym_per_pixel, np.array(left_centers, np.float32)*xm_per_pixel, 2)
+	# curv_rad = ((1 + (2*curv_fit[0]*y_values[-1]*ym_per_pixel+curv_fit[1])**2)**(3/2))/np.absolute(2*curv_fit[0])
+	# # calcutate the distance from center
+	# lane_center = (left_fitx[-1] + right_fitx[-1])/2
+	# print(lane_center)
+	# diff = (lane_center - img_size[0]/2)*xm_per_pixel
+	# if diff <= 0:
+	# 	dire = 'right'
+	# else:
+	# 	dire = 'left'
 
-	result = cv2.addWeighted(img, 1.0, lane_warped, 0.5, 0.0)	
-	# write curvature and position information onto the images
-	cv2.putText(result, "Radius of Curvature = " + str(round(curv_rad, 3)) + '(m)', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-	cv2.putText(result, "Current position is " + str(round(diff,3)) + 'm on the' + dire + "of the center", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-
+	# result = cv2.addWeighted(img, 1.0, lane_warped, 0.5, 0.0)	
+	# # write curvature and position information onto the images
+	# cv2.putText(result, "Radius of Curvature = " + str(round(curv_rad, 3)) + '(m)', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+	# cv2.putText(result, "Current position is " + str(round(diff,3)) + 'm on the' + dire + "of the center", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+	result = lane
 	# write proceesed result to new image
-	new_name = 'Final result'+str(idx)+'.jpg'
+	new_name = 'lane_marker'+str(idx)+'.jpg'
 	cv2.imwrite('./test_images/'+new_name, result) 
