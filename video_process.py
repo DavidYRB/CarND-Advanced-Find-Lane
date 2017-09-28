@@ -7,6 +7,7 @@ import glob
 import pickle
 from tracker import tracker
 from moviepy.editor import VideoFileClip
+from collections import deque
 
 # import calibration matrices
 undis_pickle = pickle.load( open('undis_pickle.p', 'rb'))
@@ -94,7 +95,7 @@ def pipeline(img):
 
 	# all widths and heights are used in percentage of the size of the image to draw a rectangular 
 	bot_width = 0.8
-	top_width = 0.091
+	top_width = 0.1
 	top_height = .62
 	bot_height = .935
 	offset = img_size[0]*.25
@@ -117,12 +118,10 @@ def pipeline(img):
 
 	# ############### Find lane line in transformed images ##############################################
 	#detect lane lines in the transformed images
-	win_width = 30
-	win_height = 80 # break image into 9 vertical layers since the height of the image is 720
-	margin = 100 # Slice area for searching
+
 	left_centers = []
 	right_centers = []
-	center_tracker = tracker(window_width=win_width, window_height=win_height, margin=margin, ym2pixel=10/720, xm2pixel=4/384, smooth_factor=15)
+
 	centers = center_tracker.find_window_centroids(warped)
 	
 
@@ -156,8 +155,23 @@ def pipeline(img):
 	
 	left_fit = np.polyfit(y_centers, left_centers, 2)
 	right_fit = np.polyfit(y_centers, right_centers, 2)
-	left_fitx = left_fit[0]*y_values*y_values + left_fit[1]*y_values + left_fit[2]
-	right_fitx = right_fit[0]*y_values*y_values + right_fit[1]*y_values + right_fit[2]
+
+	if (abs(left_fit[0] - right_fit[0]) > 0.3) or (abs(left_fit[1] - right_fit[1]) > 0.3):
+		c_left_fit = center_tracker.l_last[0]
+		c_right_fit = center_tracker.r_last[0]
+
+	else:
+		center_tracker.l_fit.append(left_fit)
+		center_tracker.r_fit.append(right_fit)
+
+		center_tracker.l_last.append(left_fit)
+		center_tracker.r_last.append(right_fit)
+
+		c_left_fit = np.average(center_tracker.l_fit[-3:], axis=0)
+		c_right_fit = np.average(center_tracker.r_fit[-3:], axis=0)
+
+	left_fitx = c_left_fit[0]*y_values*y_values + c_left_fit[1]*y_values + c_left_fit[2]
+	right_fitx = c_right_fit[0]*y_values*y_values + c_right_fit[1]*y_values + c_right_fit[2]
 	
 	left_pts = np.array(list(zip(np.concatenate((left_fitx-win_width/2, left_fitx[::-1]+win_width/2)), np.concatenate((y_values, y_values[::-1])) )), np.int32)
 	right_pts = np.array(list(zip(np.concatenate((right_fitx-win_width/2, right_fitx[::-1]+win_width/2)), np.concatenate((y_values, y_values[::-1])) )), np.int32)
@@ -187,13 +201,20 @@ def pipeline(img):
 	result = cv2.addWeighted(img, 1.0, lane_warped, 0.5, 0.0)	
 	# write curvature and position information onto the images
 	cv2.putText(result, "Radius of Curvature = " + str(round(curv_rad, 3)) + '(m)', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-	cv2.putText(result, "Current position is " + str(round(diff,3)) + 'm on the' + dire + "of the center", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+	cv2.putText(result, "Current position is " + str(round(diff,3)) + 'm on the ' + dire + " of the center", (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
 
 	return result
 
-input_video = 'challenge_video.mp4'
-output_video = 'output_video1.mp4'
+win_width = 30
+win_height = 80 # break image into 9 vertical layers since the height of the image is 720
+margin = 100 # Slice area for searching
+center_tracker = tracker(window_width=win_width, window_height=win_height, margin=margin, ym2pixel=40/720, xm2pixel=4/517, smooth_factor=15)
+
+input_video = 'project_video.mp4'
+output_video = 'output_video_test.mp4'
 
 clip = VideoFileClip(input_video)
+print("Start processing video...")
 video_clip = clip.fl_image(pipeline)
 video_clip.write_videofile(output_video, audio=False)
+print("Finished")

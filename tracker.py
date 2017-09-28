@@ -1,11 +1,19 @@
 import numpy as np
 import cv2
+from collections import deque
 
 class tracker(object):
 	"""docstring for tracker"""
 	def __init__(self, window_width, window_height, margin, ym2pixel=1, xm2pixel=1, smooth_factor=15):
 
 		self.centroids = []
+		# add something here
+		self.l_last = deque([], maxlen=1)
+		self.r_last = deque([], maxlen=1)
+
+		self.l_fit = []
+		self.r_fit = []
+
 		self.window_height = window_height
 		self.window_width = window_width
 		self.margin = margin
@@ -51,5 +59,6 @@ class tracker(object):
 			window_centroids.append((l_center, r_center))
 
 		self.centroids.append(window_centroids)
+		# print(len(self.centroids))
 		return np.average(self.centroids[-self.smooth_factor:], axis=0)
 
